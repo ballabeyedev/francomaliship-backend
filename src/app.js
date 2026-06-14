@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { corsConfig, rateLimitConfig } = require('./config/security');
+const { apiLimiter } = require('./middlewares/rateLimit.middleware');
+const { verifyCsrf } = require('./middlewares/csrf.middleware');
+const { sanitizeBody } = require('./middlewares/sanitize.middleware');
 
 const app = express();
 
@@ -15,6 +19,7 @@ app.use(helmet());
 app.use(cors(corsConfig));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(rateLimit(rateLimitConfig));
 
 
@@ -38,15 +43,17 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/francomaliship/auth', authRoutes);
 app.use('/francomaliship/account', accountRoutes);
 app.use('/francomaliship/client', envoieColisRoutes);
-app.use('/francomaliship/admin', gestionUtilisateurRoutes);
-app.use('/francomaliship/admin', gestionColisRoutes);
-app.use('/francomaliship/admin', gestionAdminRoutes);
+
+// Routes admin : rate limiting + protection CSRF sur les méthodes mutantes
+app.use('/francomaliship/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionUtilisateurRoutes);
+app.use('/francomaliship/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionColisRoutes);
+app.use('/francomaliship/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionAdminRoutes);
 app.use('/francomaliship/messages', messageClientRoutes);
 
-// Pricing routes
-app.use('/francomaliship/admin/countries', countryRoutes);
-app.use('/francomaliship/admin/shipping-prices', shippingPriceRoutes);
-app.use('/francomaliship/admin/service-prices', servicePriceRoutes);
+// Pricing routes (admin) : rate limiting + CSRF
+app.use('/francomaliship/admin/countries', apiLimiter, verifyCsrf, countryRoutes);
+app.use('/francomaliship/admin/shipping-prices', apiLimiter, verifyCsrf, shippingPriceRoutes);
+app.use('/francomaliship/admin/service-prices', apiLimiter, verifyCsrf, servicePriceRoutes);
 app.use('/francomaliship/pricing', pricingRoutes);
 
 module.exports = app;

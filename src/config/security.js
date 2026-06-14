@@ -56,18 +56,38 @@ const authRateLimitConfig = {
 const corsConfig = {
   origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   credentials: true
 };
 
 /**
- * Cookies (si refresh token)
+ * Cookies (httpOnly auth tokens + CSRF)
+ *
+ * Le frontend admin (Vercel) et l'API (Render) sont sur des origines
+ * différentes. Pour que le navigateur envoie les cookies en cross-site,
+ * il faut sameSite='none' + secure=true en production.
+ * En développement local (http), on retombe sur 'lax' sans secure.
  */
+const isProd = process.env.NODE_ENV === 'production';
+
 const cookieConfig = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict'
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
+  path: '/'
 };
+
+// Cookie CSRF : lisible par le JS frontend (double-submit), donc httpOnly=false
+const csrfCookieConfig = {
+  httpOnly: false,
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
+  path: '/'
+};
+
+const ACCESS_COOKIE_NAME = 'access_token';
+const REFRESH_COOKIE_NAME = 'refresh_token';
+const CSRF_COOKIE_NAME = 'csrf_token';
 
 /**
  * Upload fichiers (PDF / Signature)
@@ -92,6 +112,10 @@ module.exports = {
   authRateLimitConfig,
   corsConfig,
   cookieConfig,
+  csrfCookieConfig,
+  ACCESS_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+  CSRF_COOKIE_NAME,
   uploadConfig,
   cryptoConfig
 };

@@ -1,9 +1,11 @@
 const AuthService = require('../services/auth.service');
 const formatUser = require('../utils/formatUser');
 const jwt = require('jsonwebtoken');
-const { jwtConfig } = require('../config/security');
+const { jwtConfig, csrfCookieConfig, CSRF_COOKIE_NAME, REFRESH_COOKIE_NAME } = require('../config/security');
 const RefreshToken = require('../models/refreshToken.model');
-const crypto = require('crypto');
+const { generateTokens, hashToken, setTokenCookies, clearTokenCookies } = require('../utils/tokenManager');
+const { generateCsrfToken } = require('../utils/csrfToken');
+const { security } = require('../utils/logger');
 
 exports.inscriptionUser = async (req, res) => {
   const {
@@ -52,21 +54,52 @@ exports.login = async (req, res) => {
   const { identifiant, mot_de_passe } = req.body;
 
   try {
-    const { token, utilisateur, error } = await AuthService.login({ identifiant, mot_de_passe });
+    const result = await AuthService.login({ identifiant, mot_de_passe });
+    const { utilisateur, error, message } = result;
 
-    if (error) return res.status(400).json({ message: error });
+    if (error || !result.success) {
+      security.loginFailed(req, identifiant);
+      return res.status(400).json({ message: error || message || 'Identifiant ou mot de passe incorrect' });
+    }
+
+    // Génère access + refresh, stocke le hash du refresh pour rotation/révocation
+    const { accessToken, refreshToken, refreshExpiresAt } = generateTokens(utilisateur);
+    await RefreshToken.create({
+      tokenHash: hashToken(refreshToken),
+      utilisateurId: utilisateur.id,
+      expiresAt: refreshExpiresAt,
+      revoked: false
+    });
+
+    // Dépose les tokens en cookies httpOnly (PAS dans le body)
+    setTokenCookies(res, { accessToken, refreshToken });
+
+    // Cookie CSRF lisible + renvoyé pour double-submit
+    const csrf = generateCsrfToken();
+    res.cookie(CSRF_COOKIE_NAME, csrf, csrfCookieConfig);
+
+    security.loginSuccess(req, utilisateur.id);
 
     return res.status(200).json({
-      token,
-      utilisateur: formatUser(utilisateur)
+      utilisateur: formatUser(utilisateur),
+      csrfToken: csrf
     });
   } catch (err) {
-    console.error('Erreur connexion:', err);
-    return res.status(500).json({
-      message: 'Erreur serveur',
-      erreur: err.message
-    });
+    security.authError(req, 'login server error');
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
+};
+
+// Retourne l'utilisateur courant à partir du cookie d'auth (validation de session)
+exports.me = async (req, res) => {
+  return res.status(200).json({ utilisateur: formatUser(req.user) });
+};
+
+// Génère/renvoie un token CSRF (et dépose le cookie correspondant)
+exports.csrfToken = async (req, res) => {
+  const csrf = generateCsrfToken();
+  res.cookie(CSRF_COOKIE_NAME, csrf, csrfCookieConfig);
+  return res.status(200).json({ csrfToken: csrf });
 };
 
 //modifier password 
@@ -139,19 +172,22 @@ exports.modifierProfil = async (req, res) => {
 
 exports.refresh = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    // Refresh token lu depuis le cookie httpOnly (repli sur le body pour compat)
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
     if (!refreshToken) {
-      return res.status(400).json({ message: 'Refresh token manquant' });
+      return res.status(401).json({ message: 'Refresh token manquant' });
     }
 
-    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenHash = hashToken(refreshToken);
     const stored = await RefreshToken.findOne({ where: { tokenHash, revoked: false } });
     if (!stored) {
+      clearTokenCookies(res);
       return res.status(401).json({ message: 'Refresh token invalide ou révoqué' });
     }
 
     if (new Date() > stored.expiresAt) {
       await stored.destroy();
+      clearTokenCookies(res);
       return res.status(401).json({ message: 'Refresh token expiré' });
     }
 
@@ -160,32 +196,47 @@ exports.refresh = async (req, res) => {
       payload = jwt.verify(refreshToken, jwtConfig.refreshSecret);
     } catch {
       await stored.destroy();
+      clearTokenCookies(res);
       return res.status(401).json({ message: 'Refresh token invalide' });
     }
 
-    const newToken = jwt.sign(
-      { id: payload.id, role: payload.role },
-      jwtConfig.secret,
-      { expiresIn: jwtConfig.expiresIn }
-    );
+    // ROTATION : on révoque l'ancien et on émet un nouveau couple
+    stored.revoked = true;
+    await stored.save();
 
-    return res.status(200).json({ token: newToken });
+    const { accessToken, refreshToken: newRefresh, refreshExpiresAt } =
+      generateTokens({ id: payload.id, role: payload.role });
+
+    await RefreshToken.create({
+      tokenHash: hashToken(newRefresh),
+      utilisateurId: payload.id,
+      expiresAt: refreshExpiresAt,
+      revoked: false
+    });
+
+    setTokenCookies(res, { accessToken, refreshToken: newRefresh });
+
+    const csrf = generateCsrfToken();
+    res.cookie(CSRF_COOKIE_NAME, csrf, csrfCookieConfig);
+
+    return res.status(200).json({ message: 'Token rafraîchi', csrfToken: csrf });
   } catch (err) {
-    console.error('Erreur refresh:', err);
+    security.authError(req, 'refresh server error');
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
 exports.logout = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
     if (refreshToken) {
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      await RefreshToken.update({ revoked: true }, { where: { tokenHash } });
+      await RefreshToken.update({ revoked: true }, { where: { tokenHash: hashToken(refreshToken) } });
     }
+    clearTokenCookies(res);
+    res.clearCookie(CSRF_COOKIE_NAME, { ...csrfCookieConfig });
     return res.status(200).json({ message: 'Déconnexion réussie' });
   } catch (err) {
-    console.error('Erreur logout:', err);
+    security.authError(req, 'logout server error');
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };

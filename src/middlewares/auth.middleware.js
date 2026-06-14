@@ -1,40 +1,46 @@
 const jwt = require('jsonwebtoken');
-const { jwtConfig } = require('../config/security');
+const { jwtConfig, ACCESS_COOKIE_NAME } = require('../config/security');
 const User = require('../models/utilisateur.model');
+const { security } = require('../utils/logger');
 
+/**
+ * Middleware d'authentification.
+ *
+ * Lit l'access token EN PRIORITÉ depuis le cookie httpOnly `access_token`
+ * (protection XSS), avec repli sur l'en-tête Authorization Bearer pour la
+ * compatibilité avec les clients existants (mobile, etc.).
+ */
 const authMiddleware = async (req, res, next) => {
   try {
-    // Vérifier que le header Authorization est présent
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token = req.cookies?.[ACCESS_COOKIE_NAME];
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
+    }
+
+    if (!token) {
       return res.status(401).json({ message: 'Token manquant ou invalide' });
     }
 
-    // Extraire le token
-    const token = authHeader.split(' ')[1];
-
-    // Vérifier et décoder le token
     const decoded = jwt.verify(token, jwtConfig.secret);
 
-    // Vérifier que l'utilisateur existe en base
     const utilisateur = await User.findByPk(decoded.id);
     if (!utilisateur) {
       return res.status(404).json({ message: 'Utilisateur introuvable' });
     }
 
-    // Vérifier que le compte est actif — un compte désactivé ne peut plus accéder à l'API
-    // même si son JWT est encore valide (jusqu'à expiration)
+    // Un compte désactivé ne peut plus accéder même si le JWT est encore valide
     if (utilisateur.statut !== 'actif') {
       return res.status(403).json({ message: 'Compte désactivé. Contactez le support.' });
     }
 
-    // Ajouter l'utilisateur à la requête pour les prochains middlewares / contrôleurs
     req.user = utilisateur;
-
-    // Passer au prochain middleware ou route
     next();
   } catch (err) {
-    console.error('Erreur middleware auth:', err);
+    security.authError(req, err.name || 'token invalide');
     return res.status(401).json({ message: 'Token invalide' });
   }
 };

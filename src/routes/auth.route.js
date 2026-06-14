@@ -1,26 +1,30 @@
 const express = require('express');
 const router  = express.Router();
 const authController = require('../controllers/auth.controller');
-const { authRateLimit } = require('../middlewares/rateLimit.middleware');
+const { authRateLimit, loginLimiter } = require('../middlewares/rateLimit.middleware');
 const validate = require('../middlewares/validate.middleware');
 const {
   registerSchema,
   loginSchema,
-  refreshSchema,
-  logoutSchema,
   forgotPasswordSchema,
   resetPasswordSchema
 } = require('../validations/auth.validation');
 const authMiddleware = require('../middlewares/auth.middleware');
 
 router.post('/register', validate(registerSchema), authController.inscriptionUser);
-router.post('/login',    authRateLimit, validate(loginSchema), authController.login);
+router.post('/login',    loginLimiter, validate(loginSchema), authController.login);
 
-// Refresh token — rate-limité pour éviter les abus
-router.post('/refresh', authRateLimit, validate(refreshSchema), authController.refresh);
+// Refresh token (lit le cookie httpOnly) — rate-limité pour éviter les abus
+router.post('/refresh', authRateLimit, authController.refresh);
 
-// Logout — révoque le refresh token côté serveur
-router.post('/logout', validate(logoutSchema), authController.logout);
+// Logout — révoque le refresh token et supprime les cookies
+router.post('/logout', authController.logout);
+
+// Génération d'un token CSRF
+router.post('/csrf-token', authController.csrfToken);
+
+// Utilisateur courant (validation de session au montage du frontend)
+router.get('/me', authMiddleware, authController.me);
 
 // Mot de passe oublié / réinitialisation
 router.post('/oublier-password', authRateLimit, validate(forgotPasswordSchema), authController.oublierPassword);
