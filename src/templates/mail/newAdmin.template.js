@@ -9,7 +9,7 @@ module.exports = function newAdminTemplate({ nom, prenom, email, password }) {
       <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:#1a56db;padding:32px 40px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">FrancoMaliShip</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">nanei</h1>
             <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;text-transform:uppercase;letter-spacing:0.1em;">Administration</p>
           </td>
         </tr>
@@ -17,7 +17,7 @@ module.exports = function newAdminTemplate({ nom, prenom, email, password }) {
           <td style="padding:36px 40px;">
             <p style="margin:0 0 16px;color:#111;font-size:16px;">Bonjour <strong>${prenom} ${nom}</strong>,</p>
             <p style="margin:0 0 24px;color:#444;font-size:15px;line-height:1.6;">
-              Nous venons de vous ajouter en tant qu'administrateur dans <strong>FrancoMaliShip</strong>.
+              Nous venons de vous ajouter en tant qu'administrateur dans <strong>nanei</strong>.
             </p>
             <div style="background:#f5f5f3;border-radius:8px;padding:24px;margin:0 0 24px;">
               <p style="margin:0 0 12px;color:#666;font-size:13px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Vos identifiants de connexion</p>
@@ -36,7 +36,7 @@ module.exports = function newAdminTemplate({ nom, prenom, email, password }) {
         </tr>
         <tr>
           <td style="background:#f5f5f3;padding:20px 40px;text-align:center;border-top:1px solid #e2e2de;">
-            <p style="margin:0;color:#909088;font-size:12px;">© ${new Date().getFullYear()} FrancoMaliShip — Email généré automatiquement</p>
+            <p style="margin:0;color:#909088;font-size:12px;">© ${new Date().getFullYear()} nanei — Email généré automatiquement</p>
           </td>
         </tr>
       </table>

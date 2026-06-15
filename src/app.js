@@ -41,23 +41,23 @@ const adminManagementRoutes = require('./routes/admin/adminManagement.route');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Définition des routes
-app.use('/francomaliship/auth', authRoutes);
-app.use('/francomaliship/account', accountRoutes);
-app.use('/francomaliship/client', envoieColisRoutes);
+app.use('/nanei/auth', authRoutes);
+app.use('/nanei/account', accountRoutes);
+app.use('/nanei/client', envoieColisRoutes);
 
 // Routes admin : rate limiting + protection CSRF sur les méthodes mutantes
-app.use('/francomaliship/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionUtilisateurRoutes);
-app.use('/francomaliship/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionColisRoutes);
-app.use('/francomaliship/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionAdminRoutes);
-app.use('/francomaliship/messages', messageClientRoutes);
+app.use('/nanei/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionUtilisateurRoutes);
+app.use('/nanei/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionColisRoutes);
+app.use('/nanei/admin', apiLimiter, verifyCsrf, sanitizeBody, gestionAdminRoutes);
+app.use('/nanei/messages', messageClientRoutes);
 
 // Pricing routes (admin) : rate limiting + CSRF
-app.use('/francomaliship/admin/countries', apiLimiter, verifyCsrf, countryRoutes);
-app.use('/francomaliship/admin/shipping-prices', apiLimiter, verifyCsrf, shippingPriceRoutes);
-app.use('/francomaliship/admin/service-prices', apiLimiter, verifyCsrf, servicePriceRoutes);
-app.use('/francomaliship/pricing', pricingRoutes);
+app.use('/nanei/admin/countries', apiLimiter, verifyCsrf, countryRoutes);
+app.use('/nanei/admin/shipping-prices', apiLimiter, verifyCsrf, shippingPriceRoutes);
+app.use('/nanei/admin/service-prices', apiLimiter, verifyCsrf, servicePriceRoutes);
+app.use('/nanei/pricing', pricingRoutes);
 
 // RBAC : gestion des admins, menus et permissions
-app.use('/francomaliship/admin/rbac', apiLimiter, verifyCsrf, sanitizeBody, adminManagementRoutes);
+app.use('/nanei/admin/rbac', apiLimiter, verifyCsrf, sanitizeBody, adminManagementRoutes);
 
 module.exports = app;
