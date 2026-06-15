@@ -38,4 +38,16 @@ async function sendOtpEmail({ to, nom, otp }) {
   });
 }
 
-module.exports = { sendEmail, sendOtpEmail };
+/**
+ * Email de bienvenue nouvel administrateur avec identifiants provisoires
+ */
+async function sendNewAdminEmail({ to, nom, prenom, email, password }) {
+  const newAdminTemplate = require('../templates/mail/newAdmin.template');
+  return sendEmail({
+    to,
+    subject: 'Bienvenue sur FrancoMaliShip Admin — Vos identifiants',
+    html: newAdminTemplate({ nom, prenom, email, password })
+  });
+}
+
+module.exports = { sendEmail, sendOtpEmail, sendNewAdminEmail };

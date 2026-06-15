@@ -6,6 +6,16 @@ const MessageClient = require('./messageClient.model');
 const Country = require('./country.model');
 const ShippingPrice = require('./shippingPrice.model');
 const ServicePrice = require('./servicePrice.model');
+const Menu = require('./menu.model');
+const Permission = require('./permission.model');
+const sequelize = require('../config/db');
+
+// 🔹 Associations RBAC
+Menu.hasMany(Permission, { foreignKey: 'menuId', as: 'permissions' });
+Permission.belongsTo(Menu, { foreignKey: 'menuId', as: 'menu' });
+
+Permission.belongsTo(Utilisateur, { foreignKey: 'userId', as: 'utilisateur' });
+Utilisateur.hasMany(Permission, { foreignKey: 'userId', as: 'permissions' });
 
 // 🔹 Associations Colis
 Utilisateur.hasMany(Colis, { foreignKey: 'expediteurId', as: 'colisEnvoyes' });
@@ -30,4 +40,7 @@ module.exports = {
   Country,
   ShippingPrice,
   ServicePrice,
+  Menu,
+  Permission,
+  sequelize,
 };

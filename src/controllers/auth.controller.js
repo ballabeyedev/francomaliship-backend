@@ -82,7 +82,8 @@ exports.login = async (req, res) => {
 
     return res.status(200).json({
       utilisateur: formatUser(utilisateur),
-      csrfToken: csrf
+      csrfToken: csrf,
+      menus: result.menus || [],
     });
   } catch (err) {
     security.authError(req, 'login server error');
@@ -264,6 +265,25 @@ exports.oublierPassword = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+exports.changerMotDePasse = async (req, res) => {
+  try {
+    const { ancienMotDePasse, nouveauMotDePasse, confirmation } = req.body;
+    if (!ancienMotDePasse || !nouveauMotDePasse || !confirmation) {
+      return res.status(400).json({ message: 'Tous les champs sont requis.' });
+    }
+    const AuthService = require('../services/auth.service');
+    const result = await AuthService.changerMotDePasse(
+      req.user.id,
+      ancienMotDePasse,
+      nouveauMotDePasse,
+      confirmation
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.message });
   }
 };
 

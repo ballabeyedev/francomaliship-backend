@@ -6,7 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed:prices": "node src/seed/seedPrices.js"
+    "seed:prices": "node src/seed/seedPrices.js",
+    "seed:menus": "node -r dotenv/config src/seed/seedMenus.js"
   },
   "keywords": [],
   "author": "",

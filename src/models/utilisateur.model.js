@@ -35,9 +35,14 @@ const User = sequelize.define('User', {
     unique: true
   },
   role: {
-    type: DataTypes.ENUM('Admin', 'Particulier'),
+    type: DataTypes.ENUM('Admin', 'SuperAdmin', 'Particulier'),
     defaultValue: 'Particulier',
     allowNull: false
+  },
+  isFirstLogin: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    allowNull: false,
   },
   statut: {
     type: DataTypes.ENUM('actif', 'inactif'),

@@ -34,4 +34,7 @@ router.post('/reset-password/:token', authRateLimit, validate(resetPasswordSchem
 router.put('/modifier-password/:id', authMiddleware, authController.modifierPassword);
 router.put('/modifier-profil/:id',   authMiddleware, authController.modifierProfil);
 
+// Changement de mot de passe — première connexion admin
+router.post('/changer-mot-de-passe', authMiddleware, authController.changerMotDePasse);
+
 module.exports = router;

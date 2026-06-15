@@ -35,6 +35,7 @@ const countryRoutes = require('./routes/admin/country.route');
 const shippingPriceRoutes = require('./routes/admin/shippingPrice.route');
 const servicePriceRoutes = require('./routes/admin/servicePrice.route');
 const pricingRoutes = require('./routes/pricing.route');
+const adminManagementRoutes = require('./routes/admin/adminManagement.route');
 
 // Serveur fichiers statiques pour les uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -55,5 +56,8 @@ app.use('/francomaliship/admin/countries', apiLimiter, verifyCsrf, countryRoutes
 app.use('/francomaliship/admin/shipping-prices', apiLimiter, verifyCsrf, shippingPriceRoutes);
 app.use('/francomaliship/admin/service-prices', apiLimiter, verifyCsrf, servicePriceRoutes);
 app.use('/francomaliship/pricing', pricingRoutes);
+
+// RBAC : gestion des admins, menus et permissions
+app.use('/francomaliship/admin/rbac', apiLimiter, verifyCsrf, sanitizeBody, adminManagementRoutes);
 
 module.exports = app;

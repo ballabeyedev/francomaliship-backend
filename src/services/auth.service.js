@@ -6,6 +6,7 @@ const sequelize = require('../config/db');
 const { uploadImage } = require('../middlewares/uploadService'); // ton upload vers Cloudinary
 const crypto = require("crypto");
 const { Op } = require('sequelize');
+const { Permission, Menu } = require('../models');
 
 class AuthService {
 
@@ -150,7 +151,30 @@ class AuthService {
       role: utilisateur.role
     }, jwtConfig.secret, { expiresIn: jwtConfig.expiresIn });
 
-    return { success: true, token, utilisateur };
+    // Charger les menus autorisés pour Admin/SuperAdmin
+    let menus = [];
+    if (utilisateur.role === 'Admin' || utilisateur.role === 'SuperAdmin') {
+      const perms = await Permission.findAll({
+        where: { userId: utilisateur.id },
+        include: [{ model: Menu, as: 'menu', where: { isActive: true }, required: true }],
+      });
+      menus = perms.map((p) => ({
+        id: p.menu.id,
+        name: p.menu.name,
+        code: p.menu.code,
+        path: p.menu.path,
+        icon: p.menu.icon,
+        ordre: p.menu.ordre,
+        permissions: {
+          canView:   p.canView,
+          canCreate: p.canCreate,
+          canUpdate: p.canUpdate,
+          canDelete: p.canDelete,
+        },
+      }));
+    }
+
+    return { success: true, token, utilisateur, menus };
   }
 
   //modifier password 
@@ -394,6 +418,26 @@ class AuthService {
     } catch (error) {
       throw error;
     }
+  }
+
+  static async changerMotDePasse(userId, ancienMotDePasse, nouveauMotDePasse, confirmation) {
+    if (nouveauMotDePasse !== confirmation) {
+      throw Object.assign(new Error('Le nouveau mot de passe et la confirmation ne correspondent pas.'), { status: 400 });
+    }
+    const utilisateur = await Utilisateur.findByPk(userId);
+    if (!utilisateur) {
+      throw Object.assign(new Error('Utilisateur introuvable.'), { status: 404 });
+    }
+    const valid = await bcrypt.compare(ancienMotDePasse, utilisateur.mot_de_passe);
+    if (!valid) {
+      throw Object.assign(new Error('Ancien mot de passe incorrect.'), { status: 400 });
+    }
+    if (nouveauMotDePasse.length < 8) {
+      throw Object.assign(new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.'), { status: 400 });
+    }
+    const hash = await bcrypt.hash(nouveauMotDePasse, bcryptConfig.saltRounds);
+    await utilisateur.update({ mot_de_passe: hash, isFirstLogin: false });
+    return { message: 'Mot de passe modifié avec succès.' };
   }
 
 }
